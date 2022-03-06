@@ -29,6 +29,7 @@ char bech32_hrp[MAX_BECH32_HRP_LEN + 1];
 
 #if defined(TARGET_NANOS) || defined(TARGET_NANOX) || defined(TARGET_NANOS2)
 #include "cx.h"
+#include "cxram_stash.h"
 
 zxerr_t crypto_extractPublicKey(const uint32_t path[HDPATH_LEN_DEFAULT], uint8_t *pubKey, uint16_t pubKeyLen) {
     cx_ecfp_public_key_t cx_publicKey;
@@ -84,12 +85,31 @@ zxerr_t crypto_sign(uint8_t *signature,
                    uint16_t signatureMaxlen,
                    uint16_t *sigSize) {
     uint8_t messageDigest[CX_SHA256_SIZE];
+    cx_sha3_t *sha3 = (cx_sha3_t*)get_cxram_buffer();
     MEMZERO(messageDigest,sizeof(messageDigest));
+    MEMZERO((void*)sha3,sizeof(cx_sha3_t));
 
     // Hash it
     const uint8_t *message = tx_get_buffer();
-    const uint16_t messageLen = tx_get_buffer_length();
-    cx_hash_sha256(message, messageLen, messageDigest, CX_SHA256_SIZE);
+    const uint16_t messageLen = tx_get_buffer_length();    
+    switch(hdPath[1]) {
+        case HDPATH_1_DEFAULT:
+            cx_hash_sha256(message, messageLen, messageDigest, CX_SHA256_SIZE);
+            break;
+        case HDPATH_1_ETH_DEFAULT: {            
+            cx_err_t status;            
+            status = cx_keccak_init_no_throw(sha3, 256);
+            if (status != CX_OK) {
+                return zxerr_ledger_api_error;
+            }
+            status = cx_hash_no_throw((cx_hash_t*)sha3, CX_LAST, message, messageLen, messageDigest, CX_SHA256_SIZE);
+            if (status != CX_OK) {
+                return zxerr_ledger_api_error;
+            }
+        }
+            break;
+    }
+    
 
     cx_ecfp_private_key_t cx_privateKey;
     uint8_t privateKeyData[32];
