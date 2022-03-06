@@ -41,6 +41,8 @@ ifeq ($(COIN),ATOM)
 # Main app configuration
 APPNAME = "Cosmos"
 APPPATH = "44'/118'"
+APPPATH2 = "44'/60'"
+ICONNAME = "/app/app/nanox_icon.gif"
 else
 define error_message
 
@@ -52,7 +54,7 @@ endef
 $(error "$(error_message)")
 endif
 
-APP_LOAD_PARAMS = --curve secp256k1 $(COMMON_LOAD_PARAMS) --path $(APPPATH)
+APP_LOAD_PARAMS = --curve secp256k1 $(COMMON_LOAD_PARAMS) --path $(APPPATH) --path $(APPPATH2)
 
 NANOS_STACK_SIZE:=1815
 include $(CURDIR)/../deps/ledger-zxlib/makefiles/Makefile.devices
@@ -69,6 +71,8 @@ LDFLAGS += -z muldefs
 CFLAGS += -Wvla
 
 DEFINES += HAVE_HASH HAVE_BLAKE2 HAVE_SHA256 HAVE_SHA512
+DEFINES += USE_CXRAM_SECTION
+SCRIPT_LD:=$(CURDIR)/script-nanos.ld
 
 APP_SOURCE_PATH += $(MY_DIR)/src
 APP_SOURCE_PATH += $(MY_DIR)/glyphs
@@ -81,6 +85,9 @@ APP_SOURCE_PATH += $(MY_DIR)/../deps/jsmn/src
 # NanoX SDK does not allow += in APP_SOURCE_PATH or INCLUDES_PATH
 CFLAGS += -I$(MY_DIR)/../deps/tinycbor/src
 APP_SOURCE_PATH += $(MY_DIR)/../deps/tinycbor-ledger
+
+# Needed to be able to include the definition of G_cx
+INCLUDES_PATH += $(BOLOS_SDK)/lib_cxng/src
 
 .PHONY: rust
 rust:
